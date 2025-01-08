@@ -38,11 +38,14 @@ model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
+  password      String?
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
   properties    Property[]
+  notifications Notification[]
+  payments      Payment[]
 }
 
 model Property {
@@ -56,9 +59,35 @@ model Property {
   area        Float
   imageUrls   String[]
   type        String   // 'RENT' or 'SALE'
-  status      String   // 'AVAILABLE' or 'SOLD' or 'RENTED'
+  status      String   // 'AVAILABLE', 'SOLD', 'RENTED'
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   userId      String
   user        User     @relation(fields: [userId], references: [id])
+  payments    Payment[]
+  notifications Notification[]
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  amount      Float
+  status      String   // 'PENDING', 'COMPLETED', 'CANCELLED'
+  type        String   // 'RENT', 'PURCHASE'
+  createdAt   DateTime @default(now())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // 'RENT_REQUEST', 'PURCHASE_REQUEST', 'PAYMENT_RECEIVED'
+  message     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
 }
