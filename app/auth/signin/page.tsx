@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { signIn } from "next-auth/react";
-import { Building2, Github } from "lucide-react";
+import { Building2, Github, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { auth, googleProvider } from "@/lib/firebase";
+import { signInWithPopup } from "firebase/auth";
+import { useSession } from "next-auth/react";
 
 export default function SignIn() {
+  const { data: session } = useSession();
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
@@ -17,6 +21,7 @@ export default function SignIn() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +44,31 @@ export default function SignIn() {
       setError("An error occurred. Please try again.");
     }
 
+    setLoading(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user) {
+        // Sign in with NextAuth after Firebase auth
+        const res = await signIn("credentials", {
+          redirect: false,
+          email: result.user.email,
+          firebaseUID: result.user.uid,
+        });
+
+        if (res?.error) {
+          throw new Error(res.error);
+        }
+
+        router.push("/dashboard");
+      }
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      setError((error as any).message);
+    }
     setLoading(false);
   };
 
@@ -70,12 +100,21 @@ export default function SignIn() {
 
             <div>
               <label className="block text-sm font-medium mb-1">Password</label>
-              <Input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
@@ -92,14 +131,30 @@ export default function SignIn() {
             </div>
           </div>
 
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => signIn("github", { callbackUrl: "/dashboard" })}
-          >
-            <Github className="mr-2 h-4 w-4" />
-            Continue with GitHub
-          </Button>
+          <div className="flex flex-col space-y-3">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => signIn("github", { callbackUrl: "/dashboard" })}
+            >
+              <Github className="mr-2 h-4 w-4" />
+              Continue with GitHub
+            </Button>
+
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={handleGoogleSignIn}
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+                />
+              </svg>
+              Continue with Google
+            </Button>
+          </div>
 
           <div className="text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
@@ -111,4 +166,4 @@ export default function SignIn() {
       </Card>
     </div>
   );
-}
+}A
