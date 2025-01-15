@@ -8,28 +8,95 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from 'next/image';
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function NewProperty() {
+  const { toast } = useToast();
   const router = useRouter();
-  const { register, handleSubmit } = useForm();
   const [loading, setLoading] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const { register, handleSubmit, setValue } = useForm();
 
-  const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/properties', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+  const uploadImages = async (files: File[]) => {
+    const uploadedUrls = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const formData = new FormData();
+      formData.append("file", files[i]);
+      
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
       
       if (res.ok) {
-        router.push('/dashboard');
+        const data = await res.json();
+        uploadedUrls.push(data.secure_url);
       }
+    }
+    
+    return uploadedUrls;
+  };
+
+  const onSubmit = async (data: any) => {
+    setLoading(true);
+    try {
+      // Upload images first
+      const imageUrls = await uploadImages(selectedImages);
+      
+      // Create property with image URLs
+      const propertyData = {
+        ...data,
+        imageUrls,
+        price: parseFloat(data.price),
+        bedrooms: parseInt(data.bedrooms),
+        bathrooms: parseInt(data.bathrooms),
+        area: parseFloat(data.area),
+        status: "AVAILABLE"
+      };
+
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(propertyData),
+      });
+      
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to create property",
+        });
+        throw new Error('Failed to create property');
+      }
+
+      toast({
+        title: "Success",
+        description: "Property created successfully",
+      });
+
+      router.push('/dashboard');
+      router.refresh();
     } catch (error) {
       console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong",
+      });
     }
     setLoading(false);
+  };
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedImages(files);
+
+    const previews = files.map(file => URL.createObjectURL(file));
+    setImagePreviews(previews);
   };
 
   return (
@@ -51,7 +118,7 @@ export default function NewProperty() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Price</label>
-              <Input type="number" {...register("price")} required />
+              <Input type="number" step="0.01" {...register("price")} required />
             </div>
             
             <div>
@@ -73,13 +140,13 @@ export default function NewProperty() {
             
             <div>
               <label className="block text-sm font-medium mb-2">Area (sqft)</label>
-              <Input type="number" {...register("area")} required />
+              <Input type="number" step="0.01" {...register("area")} required />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2">Type</label>
-            <Select onValueChange={(value) => register("type").onChange({ target: { value } })}>
+            <Select onValueChange={(value) => setValue("type", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -92,7 +159,28 @@ export default function NewProperty() {
 
           <div>
             <label className="block text-sm font-medium mb-2">Images</label>
-            <Input type="file" multiple accept="image/*" {...register("images")} />
+            <Input 
+              type="file" 
+              multiple 
+              accept="image/*" 
+              onChange={handleImageChange}
+              required
+            />
+            <p className="text-sm text-muted-foreground mt-1">
+              You can upload multiple images
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-4">
+              {imagePreviews.map((src, index) => (
+                <Image 
+                  key={index} 
+                  src={src} 
+                  alt={`Preview ${index}`} 
+                  width={300} 
+                  height={128} 
+                  className="w-full h-32 object-cover" 
+                />
+              ))}
+            </div>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
@@ -100,6 +188,7 @@ export default function NewProperty() {
           </Button>
         </form>
       </Card>
+      <Toaster />
     </div>
   );
 }
