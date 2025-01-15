@@ -41,11 +41,18 @@ model User {
   password      String?
   emailVerified DateTime?
   image         String?
+  role          Role      @default(USER)
+  firebaseUID   String?   @unique
   accounts      Account[]
   sessions      Session[]
   properties    Property[]
   notifications Notification[]
   payments      Payment[]
+}
+
+enum Role {
+  ADMIN
+  USER
 }
 
 model Property {
@@ -73,6 +80,7 @@ model Payment {
   amount      Float
   status      String   // 'PENDING', 'COMPLETED', 'CANCELLED'
   type        String   // 'RENT', 'PURCHASE'
+  paypalOrderId String?
   createdAt   DateTime @default(now())
   propertyId  String
   property    Property @relation(fields: [propertyId], references: [id])
@@ -90,4 +98,15 @@ model Notification {
   user        User     @relation(fields: [userId], references: [id])
   propertyId  String
   property    Property @relation(fields: [propertyId], references: [id])
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentType {
+  RENT
+  PURCHASE
 }
