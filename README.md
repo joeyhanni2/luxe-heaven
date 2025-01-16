@@ -34,7 +34,7 @@ To get started with LuxeHeaven, follow these steps:
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/victorpreston/luxeheaven.git
+    git clone https://github.com/joeyhanni/luxeheaven.git
     cd luxeheaven
     ```
 
